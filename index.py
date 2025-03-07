@@ -26,13 +26,13 @@ AI_FLAG = "AI-BOT"
 
 # Simple conversation memory (sender ID -> list of recent messages)
 convo_memory = {}
-# {{context}}
+
 # Gemini prompt with context
 BASE_PROMPT = """
 You are an AI trained to sound exactly like me based on my past conversations. Here’s a sample of my successful chats with girls that built rapport and attraction:
 {CHAT_HISTORY}
 
-Your goal is to chat naturally, build rapport, and steer the conversation toward either setting up a date or inviting her to a house party. Keep it flirty, fun, and authentic to my style and the reply meesage of you should not exceed more than 30 words. Here’s the recent conversation context:
+Your goal is to chat naturally and build rapport. Keep it flirty, fun, and authentic to my style. Only suggest setting up a date or inviting her to a house party if the total conversation length (all messages so far) exceeds 100 characters—otherwise, just keep the vibe going. Replies should not exceed 30 words. Here’s the recent conversation context:
 {{context}}
 
 Respond to this message naturally, as if you’re continuing the chat: '{{message}}'
@@ -42,11 +42,18 @@ Respond to this message naturally, as if you’re continuing the chat: '{{messag
 async def generate_response(sender_id, message):
     # Build conversation context
     context = "\n".join(convo_memory.get(sender_id, []))[-500:] or "No prior context yet."
+    # Calculate total conversation length
+    total_convo_length = len("".join(convo_memory.get(sender_id, [])))
+    
     # Replace placeholders with actual values
     prompt = BASE_PROMPT.replace('{{context}}', context).replace('{{message}}', message)
+    
+    # Debug: Print context, message, and prompt
     print(f"Context: {context}")
     print(f"Message: {message}")
+    print(f"Total convo length: {total_convo_length} characters")
     print(f"Prompt: {prompt}")
+
     headers = {
         "Content-Type": "application/json",
         "x-goog-api-key": GEMINI_API_KEY
@@ -64,8 +71,20 @@ async def generate_response(sender_id, message):
         response.raise_for_status()
         # Parse Gemini response
         result = response.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+        # Ensure response is under 30 words
+        result_words = result.split()
+        if len(result_words) > 30:
+            result = " ".join(result_words[:30])
+        
         # Update conversation memory
         convo_memory[sender_id] = convo_memory.get(sender_id, []) + [f"Her: {message}", f"Me: {result}"]
+        
+        # If convo length > 100 chars, 20% chance to suggest date/party
+        if total_convo_length > 100 and random.random() < 0.2:
+            goal_prompt = "Casually suggest meeting up for a date or invite her to a house party."
+            goal_response = await generate_response(sender_id, goal_prompt)
+            return goal_response
+        
         return result
     except requests.exceptions.HTTPError as e:
         print(f"HTTP Error with Gemini API: {e} - Response: {response.text}")
@@ -106,14 +125,6 @@ async def handle_message(event):
     response = await generate_response(sender.id, message)
     await event.reply(response)
     print(f"Sent: {response}")
-
-    # Occasionally steer toward goal (20% chance)
-    # if random.random() < 0.2:
-    #     goal_prompt = "Casually suggest meeting up for a date or invite her to a house party."
-    #     goal_response = await generate_response(sender.id, goal_prompt)
-    #     await asyncio.sleep(random.uniform(5, 15))  # Short delay for follow-up
-    #     await event.reply(goal_response)
-    #     print(f"Goal message sent: {goal_response}")
 
 # Start the client
 async def main():
