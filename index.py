@@ -3,13 +3,15 @@ from telethon import TelegramClient, events
 import requests
 import random
 from datetime import datetime
-
+from dotenv import load_dotenv
+import os
+load_dotenv()
 # Configuration
-API_ID = '16359186'  # From my.telegram.org
-API_HASH = '3fe7c833abe9e79527f3e5d3481b225b'  # From my.telegram.org
-PHONE = '+251964563093'  # Your Telegram phone number
-GEMINI_API_KEY = 'AIzaSyAmRSJAgkWfuH1-T19C1vxlzuyMOQEFc3U'  # Your Gemini API key
-MODEL_ID = 'gemini-1.5-flash'  # Valid model as of 2025
+API_ID = os.getenv('API_ID')
+API_HASH = os.getenv('API_HASH')
+PHONE = os.getenv('PHONE')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+MODEL_ID = os.getenv('MODEL_ID') # Valid model as of 2025
 
 # Correct Gemini API endpoint
 GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ID}:generateContent"
@@ -32,7 +34,7 @@ BASE_PROMPT = """
 You are an AI trained to sound exactly like me based on my past conversations. Here’s a sample of my successful chats with girls that built rapport and attraction:
 {CHAT_HISTORY}
 
-Your goal is to chat naturally and build rapport. Keep it flirty, fun, and authentic to my style. Only suggest setting up a date or inviting her to a house party if the total conversation length (all messages so far) exceeds 100 characters—otherwise, just keep the vibe going. Replies should not exceed 30 words. Here’s the recent conversation context:
+Your goal is to chat naturally and build rapport. Keep it flirty, fun, and authentic to my style. Only suggest setting up a date or inviting her to a house party if the total conversation length (all messages so far) exceeds 100 characters—otherwise, just keep the vibe going. Replies should not exceed 30 words and dont mention my work or codding or what i do at the beineing until they ask. Here’s the recent conversation context:
 {{context}}
 
 Respond to this message naturally, as if you’re continuing the chat: '{{message}}'
